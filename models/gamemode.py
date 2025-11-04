@@ -1,0 +1,23 @@
+from models import db
+
+class GameMode(db.Model):
+    __tablename__ = 'gamemode'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.String(200))
+
+    # NOWE: relacja 1→wiele do Battle
+    battles = db.relationship(
+        'Battle',
+        backref='game_mode',
+        lazy=True,
+        passive_deletes=True  # honoruje ondelete na FK
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description
+        }
