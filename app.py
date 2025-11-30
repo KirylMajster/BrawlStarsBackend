@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from config import Config
 from sqlalchemy import event
 
-# Import modeli
+
 from models import db
 from models.player import Player
 from models.brawler import Brawler
@@ -13,7 +13,7 @@ from models.battle_participant import BattleParticipant
 
 
 
-# Import routes
+
 from routes.player_routes import player_bp
 from routes.brawler_routes import brawler_bp
 from routes.gamemode_routes import gamemode_bp
@@ -33,7 +33,7 @@ with app.app_context():
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-# Rejestracja blueprintów
+
 app.register_blueprint(player_bp)
 app.register_blueprint(brawler_bp)
 app.register_blueprint(gamemode_bp)

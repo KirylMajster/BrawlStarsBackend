@@ -4,18 +4,17 @@ from models.battle import Battle
 from datetime import datetime
 from models.battle_participant import BattleParticipant
 
+
 battle_bp = Blueprint('battle_bp', __name__)
 
 participants = db.relationship('BattleParticipant', backref='battle', lazy=True, passive_deletes=True)
 
 
-# GET – wszystkie bitwy
 @battle_bp.route("/battles", methods=["GET"])
 def get_battles():
     battles = Battle.query.all()
     return jsonify([b.to_dict() for b in battles])
 
-# POST – dodanie jednej lub wielu bitew
 @battle_bp.route("/battles", methods=["POST"])
 def add_battle():
     data = request.get_json()
@@ -27,11 +26,9 @@ def add_battle():
             "result": payload.get("result"),
             "duration": payload.get("duration"),
         }
-        # jeśli date jest podane i niepuste — sparsuj ISO "YYYY-MM-DD" na date
         date_str = payload.get("date")
         if date_str:
             kwargs["date"] = datetime.strptime(date_str, "%Y-%m-%d").date()
-        # jeśli date nie ma — NIE dodajemy kwargs["date"] -> zadziała default
         return kwargs
 
     if isinstance(data, list):
@@ -54,7 +51,6 @@ def add_battle():
             "battle": new_battle.to_dict()
         }), 201
 
-# DELETE – usuń bitwę
 @battle_bp.route("/battles/<int:id>", methods=["DELETE"])
 def delete_battle(id):
     battle = Battle.query.get(id)
@@ -73,14 +69,12 @@ def get_battle(battle_id):
 
     data = battle.to_dict()
 
-    # dołącz uczestników
     parts = BattleParticipant.query.filter_by(battle_id=battle_id).all()
     data["participants"] = [p.to_dict() for p in parts]
 
     return jsonify(data), 200
 
 
-# --- PUT: częściowa aktualizacja bitwy ---
 @battle_bp.route("/battles/<int:battle_id>", methods=["PUT"])
 def update_battle(battle_id):
     battle = Battle.query.get(battle_id)
@@ -89,7 +83,6 @@ def update_battle(battle_id):
 
     payload = request.get_json() or {}
 
-    # bezpieczne, częściowe zmiany
     if "map_name" in payload:
         if not payload["map_name"]:
             return jsonify({"error": "map_name nie może być pusty"}), 400
@@ -107,7 +100,6 @@ def update_battle(battle_id):
     if "date" in payload:
         date_str = payload["date"]
         if date_str is None or date_str == "":
-            # jeśli chcesz wyczyścić -> ustaw NULL (opcjonalnie)
             battle.date = None
         else:
             try:
@@ -117,7 +109,6 @@ def update_battle(battle_id):
 
     db.session.commit()
 
-    # zwróć z aktualną listą uczestników
     out = battle.to_dict()
     parts = BattleParticipant.query.filter_by(battle_id=battle_id).all()
     out["participants"] = [p.to_dict() for p in parts]

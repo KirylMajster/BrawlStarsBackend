@@ -5,21 +5,21 @@ class BattleParticipant(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # bitwa – musi istnieć, usunięcie bitwy kasuje uczestników
+
     battle_id = db.Column(
         db.Integer,
         db.ForeignKey('battle.id', ondelete='CASCADE'),
         nullable=False
     )
 
-    # gracz – opcjonalny (jeśli kiedyś usuniemy gracza, chcemy zachować wpis)
+
     player_id = db.Column(
         db.Integer,
         db.ForeignKey('player.id', ondelete='SET NULL'),
         nullable=True
     )
 
-    # brawler – opcjonalny (analogicznie)
+
     brawler_id = db.Column(
         db.Integer,
         db.ForeignKey('brawler.id', ondelete='SET NULL'),
@@ -28,7 +28,7 @@ class BattleParticipant(db.Model):
 
     is_winner = db.Column(db.Boolean, default=False)
 
-    # unikalność: ten sam gracz nie może wystąpić 2x w tej samej bitwie
+
     __table_args__ = (
         db.UniqueConstraint('battle_id', 'player_id', name='uq_battle_player'),
     )

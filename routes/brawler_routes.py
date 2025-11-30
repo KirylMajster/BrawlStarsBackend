@@ -1,77 +1,114 @@
 from flask import Blueprint, jsonify, request
-from models.brawler import Brawler, db
+from models import db
+from models.brawler import Brawler
 from models.player import Player
 
-brawler_bp = Blueprint('brawler_bp', __name__)
+
+brawler_bp = Blueprint("brawler_bp", __name__)
+
 
 @brawler_bp.route("/brawlers", methods=["GET"])
 def get_brawlers():
     brawlers = Brawler.query.all()
-    return jsonify([b.to_dict() for b in brawlers])
+    return jsonify([b.to_dict() for b in brawlers]), 200
+
 
 @brawler_bp.route("/brawlers", methods=["POST"])
-def add_brawler():
-    data = request.get_json()
+def add_brawlers():
+    payload = request.get_json()
 
-    # Jeśli przesłano listę — dodaj wielu brawlerów
-    if isinstance(data, list):
-        brawlers = []
-        for item in data:
-            new_brawler = Brawler(
-                name=item["name"],
-                rarity=item.get("rarity", "Common"),
-                health=item.get("health", 1000),
-                damage=item.get("damage", 100),
-                speed=item.get("speed", 720),
-                player_id=item.get("player_id")  # może być None
+    def make_brawler(item: dict) -> Brawler:
+        name = item.get("name")
+        if not name:
+            raise ValueError("Pole 'name' jest wymagane")
+
+        player_id = item.get("player_id")
+        if player_id is None:
+            raise ValueError("Dla relacji 1:1 wymagane jest pole 'player_id'")
+
+        if not Player.query.get(player_id):
+            raise ValueError(f"Gracz o id={player_id} nie istnieje")
+
+        existing = Brawler.query.filter_by(player_id=player_id).first()
+        if existing:
+            raise ValueError(
+                f"Gracz o id={player_id} ma już przypisanego brawlera (id={existing.id})"
             )
-            db.session.add(new_brawler)
-            brawlers.append(new_brawler)
 
-        db.session.commit()
-        return jsonify({
-            "message": f"Dodano {len(brawlers)} brawlerów!",
-            "brawlers": [b.to_dict() for b in brawlers]
-        }), 201
-
-    # Jeśli przesłano pojedynczego brawlera
-    else:
-        new_brawler = Brawler(
-            name=data["name"],
-            rarity=data.get("rarity", "Common"),
-            health=data.get("health", 1000),
-            damage=data.get("damage", 100),
-            speed=data.get("speed", 720),
-            player_id=data.get("player_id")
+        b = Brawler(
+            name=name,
+            rarity=item.get("rarity"),
+            health=item.get("health"),
+            damage=item.get("damage"),
+            speed=item.get("speed"),
+            trophies=item.get("trophies", 0),
+            player_id=player_id,
         )
-        db.session.add(new_brawler)
-        db.session.commit()
-        return jsonify({
-            "message": "Dodano brawlera!",
-            "brawler": new_brawler.to_dict()
-        }), 201
+        db.session.add(b)
+        return b
+
+    try:
+        if isinstance(payload, list):
+            created = [make_brawler(it) for it in payload]
+            db.session.commit()
+            return jsonify(
+                {
+                    "message": f"Dodano {len(created)} brawlerów!",
+                    "brawlers": [b.to_dict() for b in created],
+                }
+            ), 201
+
+        else:
+            b = make_brawler(payload)
+            db.session.commit()
+            return jsonify(
+                {
+                    "message": "Dodano brawlera!",
+                    "brawler": b.to_dict(),
+                }
+            ), 201
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
 
 
-    # --- ROUTE: aktualizacja brawlera ---
+
 @brawler_bp.route("/brawlers/<int:brawler_id>", methods=["PUT"])
 def update_brawler(brawler_id):
-    brawler = Brawler.query.get(brawler_id)
-    if not brawler:
-        return jsonify({"error": "Brawler o podanym ID nie istnieje"}), 404
+    data = request.get_json() or {}
+    b = Brawler.query.get(brawler_id)
+    if not b:
+        return jsonify({"error": "Brawler not found"}), 404
 
-    data = request.get_json()
-    brawler.name = data.get("name", brawler.name)
-    brawler.rarity = data.get("rarity", brawler.rarity)
-    brawler.health = data.get("health", brawler.health)
-    brawler.damage = data.get("damage", brawler.damage)
-    brawler.speed = data.get("speed", brawler.speed)
-    brawler.player_id = data.get("player_id", brawler.player_id)
+
+    new_player_id = data.get("player_id", b.player_id)
+    if new_player_id is None:
+        return jsonify(
+            {"error": "Pole 'player_id' nie może być puste przy relacji 1:1"}
+        ), 400
+
+    if not Player.query.get(new_player_id):
+        return jsonify({"error": f"Gracz o id={new_player_id} nie istnieje"}), 400
+
+    existing = Brawler.query.filter(
+        Brawler.player_id == new_player_id,
+        Brawler.id != b.id,
+    ).first()
+    if existing:
+        return jsonify(
+            {
+                "error": f"Gracz o id={new_player_id} ma już przypisanego brawlera (id={existing.id})"
+            }
+        ), 400
+
+    for field in ["name", "rarity", "health", "damage", "speed", "trophies", "player_id"]:
+        if field in data:
+            setattr(b, field, data[field])
 
     db.session.commit()
-    return jsonify({"message": "Dane brawlera zostały zaktualizowane", "brawler": brawler.to_dict()}), 200
+    return jsonify({"message": "updated", "id": b.id}), 200
 
 
-# --- ROUTE: usuwanie brawlera ---
 @brawler_bp.route("/brawlers/<int:brawler_id>", methods=["DELETE"])
 def delete_brawler(brawler_id):
     brawler = Brawler.query.get(brawler_id)

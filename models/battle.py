@@ -9,7 +9,7 @@ class Battle(db.Model):
     map_name = db.Column(db.String(100), nullable=False)
     date = db.Column(db.Date, default=date.today)
     result = db.Column(db.String(20))
-    duration = db.Column(db.Integer)  # w sekundach
+    duration = db.Column(db.Integer)  
 
     def to_dict(self):
         return {
@@ -26,6 +26,6 @@ class Battle(db.Model):
     'BattleParticipant',
     backref='battle',
     lazy=True,
-    passive_deletes=True  # honoruje ondelete=CASCADE
+    passive_deletes=True  
 )
 

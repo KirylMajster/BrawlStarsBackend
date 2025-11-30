@@ -5,7 +5,6 @@ from models.battle_participant import BattleParticipant
 
 participant_bp = Blueprint('participant_bp', __name__)
 
-# 1) GET: uczestnicy jednej bitwy
 @participant_bp.route("/battles/<int:battle_id>/participants", methods=["GET"])
 def get_participants_for_battle(battle_id):
     battle = Battle.query.get(battle_id)
@@ -15,7 +14,6 @@ def get_participants_for_battle(battle_id):
     return jsonify([p.to_dict() for p in parts]), 200
 
 
-# 2) POST: dodanie uczestników (pojedynczo lub batch)
 @participant_bp.route("/battles/<int:battle_id>/participants", methods=["POST"])
 def add_participants_to_battle(battle_id):
     battle = Battle.query.get(battle_id)
@@ -25,7 +23,6 @@ def add_participants_to_battle(battle_id):
     payload = request.get_json()
 
     def build_part(item):
-        # minimalnie wymagamy player_id lub brawler_id (coś musi identyfikować uczestnika)
         player_id = item.get("player_id")
         brawler_id = item.get("brawler_id")
         if player_id is None and brawler_id is None:
@@ -58,7 +55,6 @@ def add_participants_to_battle(battle_id):
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        # najczęstszy błąd: naruszenie unikalności (uq_battle_player)
         return jsonify({"error": "Nie można dodać – możliwe zduplikowanie gracza w tej bitwie.", "details": str(e)}), 400
 
     if len(created) == 1:
@@ -66,7 +62,6 @@ def add_participants_to_battle(battle_id):
     return jsonify({"message": f"Dodano {len(created)} uczestników", "participants": [c.to_dict() for c in created]}), 201
 
 
-# 3) DELETE: usuń konkretnego uczestnika
 @participant_bp.route("/participants/<int:participant_id>", methods=["DELETE"])
 def delete_participant(participant_id):
     obj = BattleParticipant.query.get(participant_id)

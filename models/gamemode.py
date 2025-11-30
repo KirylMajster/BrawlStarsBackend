@@ -7,12 +7,11 @@ class GameMode(db.Model):
     name = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(200))
 
-    # NOWE: relacja 1→wiele do Battle
     battles = db.relationship(
         'Battle',
         backref='game_mode',
         lazy=True,
-        passive_deletes=True  # honoruje ondelete na FK
+        passive_deletes=True 
     )
 
     def to_dict(self):
